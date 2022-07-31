@@ -1,0 +1,14 @@
+void main(int argc, char* argv[]);
+void parseOptions(int* argcRef, char** argvRef[], struct Options* opt);
+void writePsFile(BmpFile* b, char pixelColor, char imageColor);
+void writePsBytes(unsigned char* bytes, int count);
+BmpFile* readBmpFile(char* fileName);
+FILE* openFile(char* fileName);
+void closeFile(FILE* f);
+FileInfo readFile(FILE* f);
+unsigned int getFileSize(FILE* f);
+unsigned char* allocBuffer(unsigned int bufferSize);
+void freeBuffer(void* buffer);
+void tidy_up(void);
+void usage(void);
+void exitWithErrorMessage(char* format, ...);
