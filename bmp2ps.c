@@ -24,11 +24,11 @@
 
 struct
 {
-  FILE* f;
+  FILE*          f;
   unsigned char* buffer;
-} tidy_info = { NULL, NULL };
+} cleanup_info = { NULL, NULL };
 
-#define TIDY_INFO(x) do { tidy_info.x = x; } while (0)
+#define CLEANUP_INFO(x) do { cleanup_info.x = x; } while (0)
 
 typedef struct { unsigned char B, G, R; } BGR;
 typedef struct { unsigned char B, G, R, A; } BGRA;
@@ -42,7 +42,7 @@ typedef struct BmpFile {
     char          application_value_2[2];  /* = 0 */
     unsigned int  bitmap_offset;           /* unit: Bytes = 54/62/70/118/1078 */
   } header;
-  
+
   struct {
     unsigned int   dib_header_size;        /* unit: Bytes = 40 */
     signed int     image_width;            /* unit = Pixel */
@@ -58,7 +58,7 @@ typedef struct BmpFile {
   } dib_header;
 
   union {
-    struct bpp_1 { 
+    struct bpp_1 {
       BGRA colormap[2];
       struct {
         unsigned int ix00:1, ix01:1, ix02:1, ix03:1, ix04:1, ix05:1, ix06:1, ix07:1,
@@ -80,7 +80,7 @@ typedef struct BmpFile {
         unsigned int ix00:4, ix01:4, ix02:4, ix03:4, ix04:4, ix05:4, ix06:4, ix07:4;
       } bitmap[1];
     } b4;
-    struct bpp_8 { 
+    struct bpp_8 {
       BGRA colormap[256];
       struct {
         unsigned int ix00:8, ix01:8, ix02:8, ix03:8;
@@ -89,7 +89,7 @@ typedef struct BmpFile {
     struct bpp_24 {
       BGR bitmap[4];
     } b24;
-  }; 
+  };
 } BmpFile;
 #pragma pack(pop)
 
@@ -104,6 +104,7 @@ struct Options
   char inputColor;
   char outputColor;
 } opt = { 'S', 'S' };
+
 
 #include "bmp2ps_proto.h"
 
@@ -144,7 +145,7 @@ void parseOptions(int* argcRef, char** argvRef[], struct Options* opt)
       opt->inputColor = argv[1][1] & ~32;
     else
       opt->outputColor = argv[1][1] & ~32;
-    
+
     if (argv[1][2] != '\0')
       opt->outputColor = argv[1][2] & ~32;
 
@@ -160,17 +161,17 @@ void parseOptions(int* argcRef, char** argvRef[], struct Options* opt)
 void writePsFile(BmpFile* b, char pixelColor, char imageColor)
 {
   printf("%%!PS\n");
-  printf("%d %d\n", b->dib_header.image_width, b->dib_header.image_height);
+  printf("%d %d\n", b->dib_header.image_width, abs(b->dib_header.image_height));
   printf("1 [1 0 0 1 0 0]\n");
   printf("{<\n");
 
-  unsigned int pixelMask = (1 << b->dib_header.bits_per_pixel) - 1; 
+  unsigned int pixelMask = (1 << b->dib_header.bits_per_pixel) - 1;
   int bytesPerLine = ((b->dib_header.image_width * b->dib_header.bits_per_pixel + 31) / 32) * 4;
   unsigned char* y_ptr = ((unsigned char *) b)
                        + b->header.bitmap_offset
                        + (b->dib_header.image_height > 0 ? 0
                           : (abs(b->dib_header.image_height) - 1) * bytesPerLine);
-  int delta_y = b->dib_header.image_height > 0 ? bytesPerLine : -bytesPerLine; 
+  int delta_y = b->dib_header.image_height > 0 ? bytesPerLine : -bytesPerLine;
 
   for (int y = abs(b->dib_header.image_height); y > 0; --y, y_ptr += delta_y)
   {
@@ -271,7 +272,7 @@ FILE* openFile(char* fileName)
 
   if ((f = fopen(fileName, "rb")) == NULL)
     exitWithErrorMessage("open error %s: %s\n", fileName, strerror(errno));
-  TIDY_INFO(f);    
+  CLEANUP_INFO(f);
   return f;
 }
 
@@ -280,7 +281,7 @@ void closeFile(FILE* f)
 {
   fclose(f);
   f = NULL;
-  TIDY_INFO(f);
+  CLEANUP_INFO(f);
 }
 
 
@@ -307,7 +308,7 @@ unsigned char* allocBuffer(unsigned int bufferSize)
   unsigned char* buffer = malloc(bufferSize);
   if (buffer == NULL)
     exitWithErrorMessage("malloc error: %s", strerror(errno));
-  TIDY_INFO(buffer);
+  CLEANUP_INFO(buffer);
   return buffer;
 }
 
@@ -316,22 +317,22 @@ void freeBuffer(void* buffer)
 {
   free(buffer);
   buffer = NULL;
-  TIDY_INFO(buffer);
+  CLEANUP_INFO(buffer);
 }
 
 
-void tidy_up(void)
+void cleanup(void)
 {
-  if (tidy_info.f != NULL)
-    fclose(tidy_info.f);
-  if (tidy_info.buffer != NULL)
-    free(tidy_info.buffer);
+  if (cleanup_info.f != NULL)
+    fclose(cleanup_info.f);
+  if (cleanup_info.buffer != NULL)
+    free(cleanup_info.buffer);
 }
 
 
 void usage(void)
 {
-  exitWithErrorMessage("Gibt eine BMP-Datei im Postscript-Format aus\n"
+  exitWithErrorMessage("Gibt eine BMP-Datei im monochromen Postscript-Format aus\n"
                        "Aufruf: bmp2ps [-[{S,R,G,B}]{S,R,G,B,Y,M,C}] Datei\n\n"
                        "        R = Rot   Y = Yellow   S = Schwarz\n"
                        "        G = Grün  M = Magenta\n"
@@ -346,6 +347,6 @@ void exitWithErrorMessage(char* format, ...)
   va_start(args, format);
   vfprintf(stderr, format, args);
   va_end(args);
-  tidy_up();
+  cleanup();
   exit(1);
 }

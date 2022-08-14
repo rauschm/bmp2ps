@@ -9,6 +9,6 @@ FileInfo readFile(FILE* f);
 unsigned int getFileSize(FILE* f);
 unsigned char* allocBuffer(unsigned int bufferSize);
 void freeBuffer(void* buffer);
-void tidy_up(void);
+void cleanup(void);
 void usage(void);
 void exitWithErrorMessage(char* format, ...);
